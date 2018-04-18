@@ -8,13 +8,13 @@ var _stringify = require('babel-runtime/core-js/json/stringify');
 
 var _stringify2 = _interopRequireDefault(_stringify);
 
-var _extends2 = require('babel-runtime/helpers/extends');
-
-var _extends3 = _interopRequireDefault(_extends2);
-
 var _objectWithoutProperties2 = require('babel-runtime/helpers/objectWithoutProperties');
 
 var _objectWithoutProperties3 = _interopRequireDefault(_objectWithoutProperties2);
+
+var _extends2 = require('babel-runtime/helpers/extends');
+
+var _extends3 = _interopRequireDefault(_extends2);
 
 var _regenerator = require('babel-runtime/regenerator');
 
@@ -62,7 +62,7 @@ var DeviceAttributeDatabaseRepository = function (_BaseRepository) {
     var _this = (0, _possibleConstructorReturn3.default)(this, (DeviceAttributeDatabaseRepository.__proto__ || (0, _getPrototypeOf2.default)(DeviceAttributeDatabaseRepository)).call(this, database, _collectionNames2.default.DEVICE_ATTRIBUTES));
 
     _this._collectionName = _collectionNames2.default.DEVICE_ATTRIBUTES;
-    _this.create = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee() {
+    _this.create = (0, _asyncToGenerator3.default)( /*#__PURE__*/_regenerator2.default.mark(function _callee() {
       return _regenerator2.default.wrap(function _callee$(_context) {
         while (1) {
           switch (_context.prev = _context.next) {
@@ -78,7 +78,7 @@ var DeviceAttributeDatabaseRepository = function (_BaseRepository) {
     }));
 
     _this.deleteByID = function () {
-      var _ref2 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee2(deviceID) {
+      var _ref2 = (0, _asyncToGenerator3.default)( /*#__PURE__*/_regenerator2.default.mark(function _callee2(deviceID) {
         return _regenerator2.default.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
@@ -103,7 +103,7 @@ var DeviceAttributeDatabaseRepository = function (_BaseRepository) {
     }();
 
     _this.getAll = function () {
-      var _ref3 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee3() {
+      var _ref3 = (0, _asyncToGenerator3.default)( /*#__PURE__*/_regenerator2.default.mark(function _callee3() {
         var userID = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
         var query;
         return _regenerator2.default.wrap(function _callee3$(_context3) {
@@ -132,7 +132,7 @@ var DeviceAttributeDatabaseRepository = function (_BaseRepository) {
     }();
 
     _this.getByID = function () {
-      var _ref4 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee4(deviceID) {
+      var _ref4 = (0, _asyncToGenerator3.default)( /*#__PURE__*/_regenerator2.default.mark(function _callee4(deviceID) {
         return _regenerator2.default.wrap(function _callee4$(_context4) {
           while (1) {
             switch (_context4.prev = _context4.next) {
@@ -159,16 +159,15 @@ var DeviceAttributeDatabaseRepository = function (_BaseRepository) {
     }();
 
     _this.getManyFromIDs = function () {
-      var _ref5 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee5(deviceIDs, ownerID) {
+      var _ref5 = (0, _asyncToGenerator3.default)( /*#__PURE__*/_regenerator2.default.mark(function _callee5(deviceIDs, ownerID) {
         return _regenerator2.default.wrap(function _callee5$(_context5) {
           while (1) {
             switch (_context5.prev = _context5.next) {
               case 0:
                 _context5.next = 2;
-                return _this._database.find(_this._collectionName, {
-                  deviceID: { $in: deviceIDs },
-                  ownerID: ownerID
-                });
+                return _this._database.find(_this._collectionName, (0, _extends3.default)({
+                  deviceID: { $in: deviceIDs }
+                }, ownerID ? { ownerID: ownerID } : {}));
 
               case 2:
                 _context5.t0 = _this._parseVariables;
@@ -188,7 +187,7 @@ var DeviceAttributeDatabaseRepository = function (_BaseRepository) {
     }();
 
     _this.updateByID = function () {
-      var _ref6 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee6(deviceID, _ref7) {
+      var _ref6 = (0, _asyncToGenerator3.default)( /*#__PURE__*/_regenerator2.default.mark(function _callee6(deviceID, _ref7) {
         var variables = _ref7.variables,
             props = (0, _objectWithoutProperties3.default)(_ref7, ['variables']);
         var attributesToSave;

@@ -37,14 +37,21 @@ class ProductDatabaseRepository extends BaseRepository
 
   getByIDOrSlug = async (productIDOrSlug: string): Promise<?Product> =>
     await this._database.findOne(this._collectionName, {
-      $or: [{ product_id: productIDOrSlug }, { slug: productIDOrSlug }],
+      $or: [
+        {
+          product_id: !isNaN(productIDOrSlug)
+            ? parseInt(productIDOrSlug, 10)
+            : null,
+        },
+        { slug: productIDOrSlug },
+      ],
     });
 
-  updateByID = async (productID: string, product: Product): Promise<Product> =>
+  updateByID = async (id: string, product: Product): Promise<Product> =>
     await this._database.findAndModify(
       this._collectionName,
-      { _id: productID },
-      { $set: { ...product } },
+      { _id: id },
+      { $set: { ...(await this._formatProduct(product)) } },
     );
 
   _formatProduct = async (
@@ -62,7 +69,7 @@ class ProductDatabaseRepository extends BaseRepository
       slug,
     });
 
-    if (existingProduct && existingProduct.id !== product.id) {
+    if (existingProduct && existingProduct.product_id !== product.product_id) {
       throw new Error('Product name or version already in use');
     }
 

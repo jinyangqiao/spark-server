@@ -22,6 +22,7 @@ import httpVerb from '../decorators/httpVerb';
 import nullthrows from 'nullthrows';
 import route from '../decorators/route';
 import HttpError from '../lib/HttpError';
+import formatDeviceAttributesToApi from '../lib/deviceToAPI';
 
 type ProductFirmwareUpload = {
   current: boolean,
@@ -80,7 +81,7 @@ class ProductsController extends Controller {
       'name',
       'platform_id',
       'type',
-    ].filter(key => !model.product[key]);
+    ].filter(key => !model.product[key] && model.product[key] !== 0);
     if (missingFields.length) {
       return this.bad(`Missing fields: ${missingFields.join(', ')}`);
     }
@@ -137,7 +138,7 @@ class ProductsController extends Controller {
       'organization',
       'platform_id',
       'type',
-    ].filter(key => !model.product[key]);
+    ].filter(key => !model.product[key] && model.product[key] !== 0);
     if (missingFields.length) {
       return this.bad(`Missing fields: ${missingFields.join(', ')}`);
     }
@@ -146,7 +147,6 @@ class ProductsController extends Controller {
     if (!product) {
       return this.bad(`Product ${productIDOrSlug} doesn't exist`);
     }
-
     product = await this._productRepository.updateByID(product.id, {
       ...product,
       ...model.product,
@@ -167,6 +167,8 @@ class ProductsController extends Controller {
     }
 
     await this._productRepository.deleteByID(product.id);
+    await this._productFirmwareRepository.deleteByProductID(product.id);
+    await this._productDeviceRepository.deleteByProductID(product.id);
 
     return this.ok();
   }
@@ -182,7 +184,7 @@ class ProductsController extends Controller {
     }
 
     const config = await this._productConfigRepository.getByProductID(
-      product.id,
+      product.product_id,
     );
 
     return this.ok({ product_configuration: config });
@@ -209,7 +211,7 @@ class ProductsController extends Controller {
   @route('/v1/products/:productIDOrSlug/firmware/:version')
   async getSingleFirmware(
     productIDOrSlug: string,
-    version: number,
+    version: string,
   ): Promise<*> {
     const product = await this._productRepository.getByIDOrSlug(
       productIDOrSlug,
@@ -222,7 +224,7 @@ class ProductsController extends Controller {
     );
 
     const existingFirmware = firmwareList.find(
-      firmware => firmware.version === version,
+      firmware => firmware.version === parseInt(version, 10),
     );
     if (!existingFirmware) {
       return this.bad(`Firmware version ${version} does not exist`);
@@ -313,8 +315,6 @@ class ProductsController extends Controller {
       version: version,
     });
 
-    this._deviceManager.flashProductFirmware(product.product_id, body.binary);
-
     const { data, id, ...output } = firmware;
     return this.ok(output);
   }
@@ -323,7 +323,7 @@ class ProductsController extends Controller {
   @route('/v1/products/:productIDOrSlug/firmware/:version')
   async updateFirmware(
     productIDOrSlug: string,
-    version: number,
+    version: string,
     body: $Shape<ProductFirmware>,
   ): Promise<*> {
     const { current, description, title } = body;
@@ -343,7 +343,7 @@ class ProductsController extends Controller {
     );
 
     const existingFirmware = firmwareList.find(
-      firmware => firmware.version === version,
+      firmware => firmware.version === parseInt(version, 10),
     );
     if (!existingFirmware) {
       return this.bad(`Firmware version ${version} does not exist`);
@@ -357,12 +357,16 @@ class ProductsController extends Controller {
       },
     );
     const { data, id, ...output } = firmware;
+
+    if (current) {
+      this._deviceManager.flashProductFirmware(product.product_id);
+    }
     return this.ok(output);
   }
 
   @httpVerb('delete')
   @route('/v1/products/:productIDOrSlug/firmware/:version')
-  async deleteFirmware(productIDOrSlug: string, version: number): Promise<*> {
+  async deleteFirmware(productIDOrSlug: string, version: string): Promise<*> {
     const product = await this._productRepository.getByIDOrSlug(
       productIDOrSlug,
     );
@@ -374,7 +378,7 @@ class ProductsController extends Controller {
     );
 
     const existingFirmware = firmwareList.find(
-      firmware => firmware.version === version,
+      firmware => firmware.version === parseInt(version, 10),
     );
     if (!existingFirmware) {
       return this.bad(`Firmware version ${version} does not exist`);
@@ -401,10 +405,10 @@ class ProductsController extends Controller {
     query.page = Math.max(1, query.page);
     const { page, per_page = 25 } = query;
     const totalDevices = await this._productDeviceRepository.count({
-      productID: product.id,
+      productID: product.product_id,
     });
     const productDevices = await this._productDeviceRepository.getAllByProductID(
-      product.id,
+      product.product_id,
       page,
       per_page,
     );
@@ -415,18 +419,17 @@ class ProductsController extends Controller {
 
     const devices = (await this._deviceAttributeRepository.getManyFromIDs(
       deviceIDs,
-      this.user.id,
-    )).map(device => {
-      const { denied, development, quarantined } = nullthrows(
+    )).map(deviceAttributes => {
+      const { denied, development, productID, quarantined } = nullthrows(
         productDevices.find(
-          productDevice => productDevice.deviceID === device.deviceID,
+          productDevice => productDevice.deviceID === deviceAttributes.deviceID,
         ),
       );
-
       return {
-        ...device,
+        ...formatDeviceAttributesToApi(deviceAttributes),
         denied,
         development,
+        product_id: product.product_id,
         quarantined,
       };
     });
@@ -439,10 +442,7 @@ class ProductsController extends Controller {
 
   @httpVerb('get')
   @route('/v1/products/:productIDOrSlug/devices/:deviceID')
-  async getSingleDevices(
-    productIDOrSlug: string,
-    deviceID: string,
-  ): Promise<*> {
+  async getSingleDevice(productIDOrSlug: string, deviceID: string): Promise<*> {
     const product = await this._productRepository.getByIDOrSlug(
       productIDOrSlug,
     );
@@ -469,9 +469,10 @@ class ProductsController extends Controller {
     const { denied, development, quarantined } = productDevice;
 
     return this.ok({
-      ...deviceAttributes,
+      ...formatDeviceAttributesToApi(deviceAttributes),
       denied,
       development,
+      product_id: product.product_id,
       quarantined,
     });
   }
@@ -490,7 +491,7 @@ class ProductsController extends Controller {
       return this.bad(`${productIDOrSlug} does not exist`);
     }
 
-    let ids = null;
+    let ids: Array<string> = [];
     if (body.import_method === 'many') {
       const file = body.file;
       if (!file) {
@@ -502,7 +503,19 @@ class ProductsController extends Controller {
         return this.bad('File must be csv or txt file.');
       }
 
-      const records = csv.parse(file.buffer.toString('utf8'));
+      const records = await new Promise(
+        (resolve: (data: any) => void, reject: (error: Error) => void) =>
+          csv.parse(
+            file.buffer.toString('utf8'),
+            (error: ?Error, data: any) => {
+              if (error) {
+                reject(error);
+              }
+              resolve(data);
+            },
+          ),
+      );
+
       if (!records.length) {
         return this.bad(`File didn't have any ids`);
       }
@@ -522,17 +535,14 @@ class ProductsController extends Controller {
 
     const deviceAttributes = await this._deviceAttributeRepository.getManyFromIDs(
       ids,
-      this.user.id,
     );
+
     const incorrectPlatformDeviceIDs = deviceAttributes
       .filter(
-        deviceAttribute =>
-          deviceAttribute.particleProductId !== product.platform_id,
+        deviceAttribute => deviceAttribute.platformId !== product.platform_id,
       )
       .map(deviceAttribute => deviceAttribute.deviceID);
-    const deviceAttributeIDs = deviceAttributes.map(
-      deviceAttribute => deviceAttribute.deviceID,
-    );
+
     const existingProductDeviceIDs = (await this._productDeviceRepository.getManyFromDeviceIDs(
       ids,
     )).map(productDevice => productDevice.deviceID);
@@ -541,6 +551,10 @@ class ProductsController extends Controller {
       ...incorrectPlatformDeviceIDs,
       ...existingProductDeviceIDs,
     ];
+
+    const deviceAttributeIDs = deviceAttributes.map(
+      deviceAttribute => deviceAttribute.deviceID,
+    );
 
     const nonmemberDeviceIds = ids.filter(
       id => !deviceAttributeIDs.includes(id),
@@ -562,18 +576,27 @@ class ProductsController extends Controller {
         !invalidDeviceIds.includes(id) &&
         !existingProductDeviceIDs.includes(id),
     );
-    await Promise.all(
+
+    const createdProductDevices = await Promise.all(
       idsToCreate.map(id =>
         this._productDeviceRepository.create({
           denied: false,
           development: false,
           deviceID: id,
           lockedFirmwareVersion: null,
-          productID: product.id,
+          productID: product.product_id,
           quarantined: nonmemberDeviceIds.includes(id),
         }),
       ),
     );
+
+    // flash devices
+    createdProductDevices.forEach(productDevice => {
+      this._deviceManager.flashProductFirmware(
+        productDevice.productID,
+        productDevice.deviceID,
+      );
+    });
 
     return this.ok({
       updated: idsToCreate.length,
@@ -584,7 +607,7 @@ class ProductsController extends Controller {
 
   @httpVerb('put')
   @route('/v1/products/:productIDOrSlug/devices/:deviceID')
-  async updateDeviceProduct(
+  async updateProductDevice(
     productIDOrSlug: string,
     deviceID: string,
     {
@@ -624,6 +647,7 @@ class ProductsController extends Controller {
       return this.bad(`Device ${deviceID} is not associated with a product`);
     }
 
+    let shouldFlash = false;
     let output = { id: productDevice.id, updated_at: new Date() };
     if (desired_firmware_version !== undefined) {
       const deviceFirmwares = await this._productFirmwareRepository.getAllByProductID(
@@ -643,6 +667,8 @@ class ProductsController extends Controller {
 
       productDevice.lockedFirmwareVersion = parsedFirmware;
       output = { ...output, desired_firmware_version };
+
+      shouldFlash = true;
     }
 
     if (notes !== undefined) {
@@ -663,12 +689,20 @@ class ProductsController extends Controller {
     if (quarantined !== undefined) {
       productDevice.quarantined = quarantined;
       output = { ...output, quarantined };
+      shouldFlash = true;
     }
 
     const updatedProductDevice = await this._productDeviceRepository.updateByID(
       productDevice.id,
       productDevice,
     );
+
+    if (shouldFlash) {
+      this._deviceManager.flashProductFirmware(
+        productDevice.productID,
+        productDevice.deviceID,
+      );
+    }
 
     return this.ok(output);
   }
@@ -694,9 +728,9 @@ class ProductsController extends Controller {
       return this.bad(`Device ${deviceID} doesn't exist.`);
     }
 
-    const productDevice = (await this._productDeviceRepository.getManyFromDeviceIDs(
-      [deviceID],
-    ))[0];
+    const productDevice = await this._productDeviceRepository.getFromDeviceID(
+      deviceID,
+    );
 
     if (!productDevice) {
       return this.bad(
@@ -725,7 +759,7 @@ class ProductsController extends Controller {
 
   _formatProduct(product: Product): $Shape<Product> {
     const { product_id, ...output } = product;
-    output.id = product_id;
+    output.id = product_id.toString();
     return output;
   }
 }

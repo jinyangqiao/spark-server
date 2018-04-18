@@ -328,7 +328,7 @@ class WebhookManager {
               this._incrementWebhookErrorCounter(webhook.id);
 
               this._eventPublisher.publish({
-                data: errorMessage,
+                data: errorMessage || '',
                 isPublic: false,
                 name: this._compileErrorResponseTopic(webhook, event),
                 userID: event.userID,

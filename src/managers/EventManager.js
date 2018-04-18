@@ -4,9 +4,12 @@ import type { EventPublisher } from 'spark-protocol';
 import type { Event, EventData } from '../types';
 
 type FilterOptions = {
+  connectionID?: ?string,
   deviceID?: string,
+  listenToBroadcastedEvents?: boolean,
+  listenToInternalEvents?: boolean,
   mydevices?: boolean,
-  userID: string,
+  userID?: string,
 };
 
 class EventManager {
@@ -21,7 +24,7 @@ class EventManager {
     eventHandler: (event: Event) => void,
     filterOptions: FilterOptions,
   ): string =>
-    this._eventPublisher.subscribe(eventNamePrefix, eventHandler, {
+    this._eventPublisher.subscribe(eventNamePrefix || undefined, eventHandler, {
       filterOptions,
     });
 
