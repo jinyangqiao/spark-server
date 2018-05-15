@@ -104,7 +104,7 @@
     "nullthrows": "^1.0.0",
     "request": "^2.83.0",
     "rmfr": "^1.0.8",
-    "spark-protocol": "git+https://github.com/Brewskey/spark-protocol.git#dev",
+    "spark-protocol": "git+https://github.com/jinyangqiao/spark-protocol.git#dev",
     "uuid": "^3.0.1"
   },
   "devDependencies": {
