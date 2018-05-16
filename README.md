@@ -3,7 +3,7 @@ spark-server
 
 These instructions have been modified for the Brewskey clone of the local cloud :)
 
-An API compatible open source server for interacting with devices speaking the [spark-protocol](https://github.com/Brewskey/spark-protocol)
+An API compatible open source server for interacting with devices speaking the [spark-protocol](https://github.com/jinyangqiao/spark-protocol)
 
 <pre>
    __  __            __                 __        __                ____
