@@ -18,7 +18,7 @@ Quick Install
 ==============
 
 ```
-git clone https://github.com/Brewskey/spark-server.git
+git clone https://github.com/jinyangqiao/spark-server.git
 cd spark-server/
 npm install
 ```
